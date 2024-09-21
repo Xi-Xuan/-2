@@ -211,8 +211,7 @@ public:
             // 可以通过抛出异常、记录日志或设置错误码等方式进行  
             throw runtime_error("无法打开文件以追加数据。");  
         }  
-    }
-    
+    }   
 };
 
 class LiDAR{//多线激光雷达
@@ -405,10 +404,10 @@ public:
 
     void print() const {  
         cout << "智能车编号:" << id << endl;  
-        chassis->print();
+        chassis->print();   //chassis改成了指针
         AGX::print();
         Stereo_Camera::print();
-        lidar->print();
+        lidar->print();     //lidar改成了指针
         Gyroscope::print();
         LCD::print();
         Battery::print();
@@ -420,10 +419,10 @@ public:
         ofstream file(filename, ios::app); // 注意这里使用了 std::ios::app  
         if (file.is_open()) {  
             file << "智能车编号:" << id << endl;
-            chassis->save(filename);
+            chassis->save(filename);    //chassis改成了指针
             AGX::save(filename);
             Stereo_Camera::save(filename);
-            lidar->save(filename);
+            lidar->save(filename);      //lidar改成了指针
             Gyroscope::save(filename);
             LCD::save(filename);
             Battery::save(filename);
@@ -502,7 +501,7 @@ void loadCarsFromFile(vector<SmartCar>& cars, const string& filename) {
     file.close();  
 }
 
-void displayCars(const vector<SmartCar>& cars, int currentIndex) {  
+void displayCars(const vector<SmartCar>& cars, int currentIndex) {  //作业二的显示代码
     if (currentIndex < 0 || currentIndex >= cars.size()) return;  
     const SmartCar& car = cars[currentIndex];  
     car.print();  
@@ -561,8 +560,7 @@ int main() {
         cin >> key;  
         if (key == 'n' && currentIndex < loadedCars.size() - 1) currentIndex++;  
         else if (key == 'p' && currentIndex > 0) currentIndex--;  
-    } while (key == 'n' || key == 'p');  
-    
+    } while (key == 'n' || key == 'p');
 
     return 0;  
 }
