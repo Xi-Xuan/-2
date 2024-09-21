@@ -8,8 +8,23 @@
 #include <chrono> 
 
 using namespace std;    
-// 示例类定义  
+ 
+
+// 消息类  
+class ObstacleMessage {  
+public:  
+    string obstacle_direction;  
   
+    ObstacleMessage(string direction) : obstacle_direction(direction) {}  
+};  
+  
+// 订阅者接口  
+class Subscriber {  
+public:  
+    virtual void notify(const ObstacleMessage& msg) = 0;  
+    virtual ~Subscriber() {}  
+};  
+
 class Tire {  
 private:  
     string geshu;       //个数
@@ -40,7 +55,7 @@ public:
     }  
 };  
   
-class Chassis:public Tire {  
+class Chassis:public Tire,public Subscriber {  
     // 类似地定义底盘的属性和方法
 private:
     string id;              //编号
@@ -91,6 +106,18 @@ public:
             throw runtime_error("无法打开文件以追加数据。");  
         }  
     }
+
+    void notify(const ObstacleMessage& msg) override {  // 底盘模块类，实现订阅者接口
+        if (msg.obstacle_direction == "1") {  
+            cout << "后退..." << endl;  
+        } else if (msg.obstacle_direction == "2") {  
+            cout << "左转..." << endl;  
+        } else if (msg.obstacle_direction == "3") {  
+            cout << "右转..." << endl;  
+        } else {  
+            cout << "无障碍物或未知方向..." << endl;  
+        }  
+    }  
       
 };
 
@@ -195,6 +222,7 @@ private:
     string Channels;
     string Range;
     string Consumption;
+    vector<Subscriber*> subscribers;
 public:
     LiDAR(string geshu = "1个",string Model = "RS-Helios-16p",string Channels = "16",
     string Range = "100m",string Consumption = "8W"):
@@ -223,7 +251,18 @@ public:
             // 可以通过抛出异常、记录日志或设置错误码等方式进行  
             throw runtime_error("无法打开文件以追加数据。");  
         }  
-    }    
+    }
+
+    void addSubscriber(Subscriber* subscriber) {  
+        subscribers.push_back(subscriber);  
+    }  
+  
+    void publishObstacle(const string& obstacle_direction) {  
+        ObstacleMessage msg(obstacle_direction);  
+        for (auto subscriber : subscribers) {  
+            subscriber->notify(msg);  
+        }  
+    }     
 };
 
 class Gyroscope{
@@ -352,20 +391,24 @@ public:
 
 }; 
 
-class SmartCar:public Chassis,public AGX,public Stereo_Camera,public LiDAR,public Gyroscope,public LCD,public Battery,public Student{  
+class SmartCar:public AGX,public Stereo_Camera,public Gyroscope,public LCD,public Battery,public Student{  
 private:  
-    string id;    
-public:  
-    SmartCar(string i = "Unknown") : id(i),Chassis(),AGX(),Stereo_Camera(),LiDAR(),Gyroscope(),LCD(),Battery(),Student() {}  
-  
+    string id;
+    Chassis* chassis;  
+    LiDAR* lidar;        
+public:
+    SmartCar(string i = "Unknown") : id(i),chassis(new Chassis),AGX(),Stereo_Camera(),lidar(new LiDAR()),Gyroscope(),LCD(),Battery(),Student() {}  
+
     void setID(string i) { id = i; }  
-  
+    Chassis* getChassis() const {return chassis;}
+    LiDAR* getLiDAR() const {return lidar;}
+
     void print() const {  
         cout << "智能车编号:" << id << endl;  
-        Chassis::print();
+        chassis->print();
         AGX::print();
         Stereo_Camera::print();
-        LiDAR::print();
+        lidar->print();
         Gyroscope::print();
         LCD::print();
         Battery::print();
@@ -377,10 +420,10 @@ public:
         ofstream file(filename, ios::app); // 注意这里使用了 std::ios::app  
         if (file.is_open()) {  
             file << "智能车编号:" << id << endl;
-            Chassis::save(filename);
+            chassis->save(filename);
             AGX::save(filename);
             Stereo_Camera::save(filename);
-            LiDAR::save(filename);
+            lidar->save(filename);
             Gyroscope::save(filename);
             LCD::save(filename);
             Battery::save(filename);
@@ -443,8 +486,9 @@ void loadCarsFromFile(vector<SmartCar>& cars, const string& filename) {
          if (line.substr(0, 16) == "智能车编号:") {             
             currentCar.setID(line.substr(16));          
         } else if (line.substr(0, 13) == "底盘编号:") {  
-            size_t colon = line.find(':');  
-            currentCar.Chassis::setId(line.substr(colon + 2,11));
+            size_t colon = line.find(':');
+            Chassis* chassis = currentCar.getChassis(); 
+            chassis->setId(line.substr(colon + 2,11));
         } else if (line.substr(0, 7) == "学号:") {  
             size_t colon = line.find(':');             
             currentCar.Student::setId(line.substr(colon + 2));
@@ -464,7 +508,24 @@ void displayCars(const vector<SmartCar>& cars, int currentIndex) {
     car.print();  
 }
 
+void displayCars1(const vector<SmartCar>& cars, int currentIndex) {  
+    if (currentIndex < 0 || currentIndex >= cars.size()) return;  
+    const SmartCar& car = cars[currentIndex];
+    LiDAR* lidar = cars[currentIndex].getLiDAR();
+    Chassis* chassis = cars[currentIndex].getChassis();
+    // 注册订阅者
+    lidar->addSubscriber(chassis);
+
+    // 模拟发布障碍物信息  
+    lidar->publishObstacle("1"); // 前方障碍物  
+    lidar->publishObstacle("2"); // 左前方障碍物  
+    lidar->publishObstacle("3"); // 右前方障碍物  
+
+    car.print();  
+}
+
 int main() {  
+    
     srand(time(0));
     // 创建智能小车
     SmartCar* p[10];
@@ -473,7 +534,8 @@ int main() {
         p[i]=new SmartCar;  
         p[i]->setID(generateCQUSN16());
 
-        p[i]->Chassis::setId(generateCQUSN8());   
+        Chassis* chassis = p[i]->getChassis();
+        chassis->setId(generateCQUSN8());   
 
         // 分配学生（随机分配示例）  
         p[i]->Student::setId("stu" + to_string(rand() % 1000));  
@@ -487,18 +549,20 @@ int main() {
     }
     ofstream file("car1_info.txt", ios::app);
     file.close();
+
     vector<SmartCar> loadedCars;  
     loadCarsFromFile(loadedCars, "car1_info.txt");
 
     int currentIndex = 0;  
     char key;  
     do {  
-        displayCars(loadedCars, currentIndex);  
+        displayCars1(loadedCars, currentIndex);  
         cout << "Press 'n' for next or 'p' for previous (current: " << currentIndex + 1 << "): ";  
         cin >> key;  
         if (key == 'n' && currentIndex < loadedCars.size() - 1) currentIndex++;  
         else if (key == 'p' && currentIndex > 0) currentIndex--;  
     } while (key == 'n' || key == 'p');  
-      
+    
+
     return 0;  
 }
