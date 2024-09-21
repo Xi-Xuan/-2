@@ -51,7 +51,6 @@ private:
     string turning_radius;  //最小转弯半径
     string drive_mode;      //驱动形式
     string maximum_range;   //最大行程
-
 public:  
     Chassis(string id = "Unknown", string model = "SCOUT MINI",string wheelbase = "451mm",
     string track_width ="490mm",string ground_clearance = "115mm",string turning_radius = "0m",
@@ -500,8 +499,6 @@ int main() {
         if (key == 'n' && currentIndex < loadedCars.size() - 1) currentIndex++;  
         else if (key == 'p' && currentIndex > 0) currentIndex--;  
     } while (key == 'n' || key == 'p');  
-     
-    // 文件读取和显示逻辑需要额外实现，例如使用文件读取循环和键盘输入来控制显示哪一辆小车的信息  
-  
+      
     return 0;  
 }
